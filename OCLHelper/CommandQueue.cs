@@ -5,8 +5,10 @@ using static OCLHelper.CLHandle;
 
 namespace OCLHelper;
 
-public class CommandQueue
+public class CommandQueue : IDisposable
 {
+    private bool disposedValue;
+    
     public nint Handle { get; }
 
     public unsafe CommandQueue(Context context, Device device, QueueProperties[] properties)
@@ -235,9 +237,24 @@ public class CommandQueue
     {
         Handle = h;
     }
+    
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposedValue)
+        {
+            OCL.ReleaseCommandQueue(Handle);
+            disposedValue = true;
+        }
+    }
 
     ~CommandQueue()
     {
-        OCL.ReleaseCommandQueue(Handle);
+        Dispose(disposing: false);
+    }
+
+    public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
     }
 }

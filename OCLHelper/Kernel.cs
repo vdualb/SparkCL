@@ -6,8 +6,10 @@ using static OCLHelper.CLHandle;
 
 namespace OCLHelper;
 
-public class Kernel
+public class Kernel : IDisposable
 {
+    private bool disposedValue;
+    
     public nint Handle { get; }
 
     unsafe public Kernel(
@@ -21,11 +23,6 @@ public class Kernel
         {
             throw new Exception(AppendErrCode("Failed to create kernel, code: ", err));
         }
-    }
-
-    ~Kernel()
-    {
-        OCL.ReleaseKernel(Handle);
     }
 
     unsafe private void GetArgInfo<Y>(
@@ -137,5 +134,26 @@ public class Kernel
         {
             throw new Exception(AppendErrCode("Failed to set kernel argument, code: ", err));
         }
+    }
+    
+    
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposedValue)
+        {
+            OCL.ReleaseKernel(Handle);
+            disposedValue = true;
+        }
+    }
+
+    ~Kernel()
+    {
+        Dispose(disposing: false);
+    }
+
+    public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
     }
 }

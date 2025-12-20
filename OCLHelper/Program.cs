@@ -5,8 +5,10 @@ using static OCLHelper.CLHandle;
 
 namespace OCLHelper;
 
-public class Program
+public class Program : IDisposable
 {
+    private bool disposedValue;
+    
     internal nint Handle { get; }
 
     unsafe public static Program CreateWithSource(
@@ -129,9 +131,24 @@ public class Program
     {
         Handle = h;
     }
+    
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposedValue)
+        {
+            OCL.ReleaseProgram(Handle);
+            disposedValue = true;
+        }
+    }
 
     ~Program()
     {
-        OCL.ReleaseProgram(Handle);
+        Dispose(disposing: false);
+    }
+
+    public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
     }
 }

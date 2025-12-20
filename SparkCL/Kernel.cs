@@ -52,8 +52,10 @@ public class ArgInfo
     }
 }
 
-public class Kernel
+public class Kernel : IDisposable
 {
+    private bool disposedValue;
+    
     OCLHelper.Kernel Inner;
     public NDRange GlobalWork { get; set; }
     public NDRange LocalWork { get; set; }
@@ -155,5 +157,25 @@ public class Kernel
         Inner = kernel;
         GlobalWork = globalWork;
         LocalWork = localWork;
+    }
+    
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposedValue)
+        {
+            Inner.Dispose();
+            disposedValue = true;
+        }
+    }
+
+    ~Kernel()
+    {
+        Dispose(disposing: false);
+    }
+
+    public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
     }
 }

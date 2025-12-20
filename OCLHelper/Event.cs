@@ -45,28 +45,18 @@ public class Event: IDisposable
     {
         if (!disposedValue)
         {
-            if (disposing)
-            {
-                // TODO: освободить управляемое состояние (управляемые объекты)
-            }
-
-            // TODO: освободить неуправляемые ресурсы (неуправляемые объекты) и переопределить метод завершения
-            // TODO: установить значение NULL для больших полей
             OCL.ReleaseEvent(Handle);
             disposedValue = true;
         }
     }
 
-    // TODO: переопределить метод завершения, только если "Dispose(bool disposing)" содержит код для освобождения неуправляемых ресурсов
     ~Event()
     {
-        // Не изменяйте этот код. Разместите код очистки в методе "Dispose(bool disposing)".
         Dispose(disposing: false);
     }
 
     public void Dispose()
     {
-        // Не изменяйте этот код. Разместите код очистки в методе "Dispose(bool disposing)".
         Dispose(disposing: true);
         GC.SuppressFinalize(this);
     }

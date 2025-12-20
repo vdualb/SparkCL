@@ -59,6 +59,14 @@ static public class Core
 {
     public const nuint Prefered1D = 32;
 
+    // Every object stored in static memory must be disposed
+    // together with Core. Such objects can't be reused across
+    // OpenCL contexts, otherwise CL_INVALID_CONTEXT occurs.
+    // This event is introduced to connect handlers which dispose
+    // mentioned objects.
+    public delegate void DeinitHandler();
+    static public event DeinitHandler? OnDeinit;
+    
     static public Context? context;
     static public CommandQueue? queue;
     static public OCLHelper.Device? device;
@@ -73,6 +81,11 @@ static public class Core
         var platforms = Platform.GetDiscovered();
         Trace.WriteLine($"Discover platforms: {sw.ElapsedMilliseconds}ms");
         Platform platform;
+        
+        if (device is not null) {
+            Console.WriteLine("Warning: SparkCL was already initialized");
+        }
+        
         // Avoid Clover if possible
         if (platforms[0].GetName() == "Clover" && platforms.Length > 1)
         {
@@ -104,6 +117,19 @@ static public class Core
         Trace.WriteLine($"Create queue: {sw.ElapsedMilliseconds}ms");
         
         Trace.Unindent();
+    }
+
+    static public void Deinit()
+    {
+        OnDeinit?.Invoke();
+        OnDeinit = null;
+        context.Dispose();
+        queue.Dispose();
+        device.Dispose();
+        
+        context = null;
+        queue = null;
+        device = null;
     }
 
     #if COLLECT_TIME

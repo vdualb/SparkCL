@@ -5,8 +5,10 @@ using static OCLHelper.CLHandle;
 
 namespace OCLHelper;
 
-public class Device
+public class Device : IDisposable
 {
+    private bool disposedValue;
+    
     DeviceType Type { get; }
     public nint Handle { get; }
 
@@ -87,8 +89,23 @@ public class Device
         Handle = h;
     }
 
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposedValue)
+        {
+            OCL.ReleaseDevice(Handle);
+            disposedValue = true;
+        }
+    }
+
     ~Device()
     {
-        OCL.ReleaseDevice(Handle);
+        Dispose(disposing: false);
+    }
+
+    public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
     }
 }

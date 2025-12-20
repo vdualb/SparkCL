@@ -4,8 +4,10 @@ using static OCLHelper.CLHandle;
 
 namespace OCLHelper;
 
-public class Context
+public class Context : IDisposable
 {
+    private bool disposedValue;
+
     public nint Handle { get; }
 
     unsafe static public Context ForDevices(
@@ -60,8 +62,23 @@ public class Context
         Handle = h;
     }
 
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposedValue)
+        {
+            OCL.ReleaseContext(Handle);
+            disposedValue = true;
+        }
+    }
+
     ~Context()
     {
-        OCL.ReleaseContext(Handle);
+        Dispose(disposing: false);
+    }
+
+    public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
     }
 }

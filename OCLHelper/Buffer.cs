@@ -5,9 +5,11 @@ using static OCLHelper.CLHandle;
 
 namespace OCLHelper;
 
-public class Buffer<T> : IMemObject<T>
+public class Buffer<T> : IMemObject<T>, IDisposable
 where T : unmanaged, INumber<T>
 {
+    private bool disposedValue;
+    
     public nint Handle { get; }
     public bool IsOnHost { get; }
     public int Length { get; }
@@ -79,8 +81,23 @@ where T : unmanaged, INumber<T>
         Length = length;
     }
 
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposedValue)
+        {
+            OCL.ReleaseMemObject(Handle);
+            disposedValue = true;
+        }
+    }
+
     ~Buffer()
     {
-        OCL.ReleaseMemObject(Handle);
+        Dispose(disposing: false);
+    }
+
+    public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
     }
 }

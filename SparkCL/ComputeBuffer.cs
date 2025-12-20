@@ -14,9 +14,11 @@ public enum BufferFlags
     // DeviceInternal = 1<<2,
 }
 
-public unsafe class ComputeBuffer<T>
+public unsafe class ComputeBuffer<T> : IDisposable
 where T: unmanaged, INumber<T>
 {
+    private bool disposedValue;
+    
     internal Buffer<T>? _hostBuffer;
     internal Buffer<T>? _deviceBuffer;
     public int Length { get; }
@@ -310,6 +312,27 @@ where T: unmanaged, INumber<T>
         }
         return ev;
     }
+    
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposedValue)
+        {
+            _hostBuffer?.Dispose();
+            _deviceBuffer?.Dispose();
+            disposedValue = true;
+        }
+    }
+
+    ~ComputeBuffer()
+    {
+        Dispose(disposing: false);
+    }
+
+    public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
 }
 
 unsafe interface IReadOnlyMemAccessor<T>
@@ -329,13 +352,13 @@ where T: unmanaged, INumber<T>
 public unsafe class Accessor<T> : IMemAccessor<T>, IDisposable
 where T: unmanaged, INumber<T>
 {
-    internal T* ptr { get; }
-    unsafe T* IReadOnlyMemAccessor<T>._ptr => ptr;
     private bool disposedValue;
+    
+    internal T* ptr { get; }
+    T* IReadOnlyMemAccessor<T>._ptr => ptr;
     ComputeBuffer<T> _master;
 
     public int Length { get; private set; }
-
 
     public T this[int i]
     {
@@ -362,28 +385,18 @@ where T: unmanaged, INumber<T>
     {
         if (!disposedValue)
         {
-            if (disposing)
-            {
-                // TODO: освободить управляемое состояние (управляемые объекты)
-                _master.UnmapAccessor(this);
-            }
-
-            // TODO: освободить неуправляемые ресурсы (неуправляемые объекты) и переопределить метод завершения
-            // TODO: установить значение NULL для больших полей
+            _master.UnmapAccessor(this);
             disposedValue = true;
         }
     }
 
-    // // TODO: переопределить метод завершения, только если "Dispose(bool disposing)" содержит код для освобождения неуправляемых ресурсов
-    // ~Accessor()
-    // {
-    //     // Не изменяйте этот код. Разместите код очистки в методе "Dispose(bool disposing)".
-    //     Dispose(disposing: false);
-    // }
+    ~Accessor()
+    {
+        Dispose(disposing: false);
+    }
 
     public void Dispose()
     {
-        // Не изменяйте этот код. Разместите код очистки в методе "Dispose(bool disposing)".
         Dispose(disposing: true);
         GC.SuppressFinalize(this);
     }

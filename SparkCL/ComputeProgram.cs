@@ -2,8 +2,10 @@ using OCLHelper;
 
 namespace SparkCL;
 
-public class ComputeProgram
+public class ComputeProgram : IDisposable
 {
+    private bool disposedValue;
+    
     Program program;
 
     public ComputeProgram(string fileName)
@@ -15,5 +17,25 @@ public class ComputeProgram
     {
         var oclKernel = new OCLHelper.Kernel(program, kernelName);
         return new Kernel(oclKernel, globalWork, localWork);
+    }
+    
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposedValue)
+        {
+            program.Dispose();
+            disposedValue = true;
+        }
+    }
+
+    ~ComputeProgram()
+    {
+        Dispose(disposing: false);
+    }
+
+    public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
     }
 }
