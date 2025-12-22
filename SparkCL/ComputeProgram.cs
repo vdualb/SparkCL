@@ -19,6 +19,11 @@ public class ComputeProgram : IDisposable
         return new Kernel(oclKernel, globalWork, localWork);
     }
     
+    public byte[][] GetBinaries()
+    {
+        return program.GetBinaries();
+    }
+    
     protected virtual void Dispose(bool disposing)
     {
         if (!disposedValue)

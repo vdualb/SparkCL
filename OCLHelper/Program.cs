@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Text;
 using Silk.NET.OpenCL;
 
@@ -125,6 +126,90 @@ public class Program : IDisposable
                 err
             ));
         }
+    }
+    
+    unsafe private void GetInfo<Y>(
+        ProgramInfo param_name,
+        nuint param_value_size,
+        Y* param_value,
+        out nuint param_value_size_ret)
+    where Y : unmanaged
+    {
+        var err = (ErrorCodes)OCL.GetProgramInfo(
+            Handle,
+            param_name,
+            param_value_size,
+            param_value,
+            out param_value_size_ret
+        );
+
+        if (err != ErrorCodes.Success)
+        {
+            throw new Exception(AppendErrCode(
+                $"Failed to get program build info ({param_name}), code: ",
+                err
+            ));
+        }
+    }
+    
+    public unsafe nuint[] GetBinarySizes()
+    {
+        GetInfo<nuint>(
+            ProgramInfo.BinarySizes,
+            0, null, out var size_ret
+        );
+
+        nuint[] sizes = new nuint[size_ret / (nuint)sizeof(nuint)];
+
+        fixed (nuint* p_sizes = sizes)
+        {
+            GetInfo(
+                ProgramInfo.BinarySizes,
+                size_ret, p_sizes,
+                out _
+            );
+        }
+
+        return sizes;
+    }
+    
+    public unsafe byte[][] GetBinaries()
+    {
+        var sizes = GetBinarySizes();
+        var binaries = new byte[sizes.Length][];
+        var gch_binaries = new GCHandle[sizes.Length];
+        var p_binaries = new byte* [sizes.Length];
+
+        for (int i = 0; i < sizes.Length; i++)
+        {
+            binaries[i] = new byte[sizes[i]];
+            gch_binaries[i] = GCHandle.Alloc(binaries[i], GCHandleType.Pinned);
+            p_binaries[i] = (byte*)gch_binaries[i].AddrOfPinnedObject().ToPointer();
+        }
+
+        GetInfo<IntPtr>(
+            ProgramInfo.Binaries,
+            0, null,
+            out var size_ret
+        );
+
+        fixed (byte** p_p_binaries = p_binaries)
+        {
+            GetInfo(
+                ProgramInfo.Binaries,
+
+                size_ret,
+                (nint*)p_p_binaries,
+                out _
+            );
+        }
+
+        for (int i = 0; i < gch_binaries.Length; i++)
+        {
+            gch_binaries[i].Free();
+        }
+
+        return binaries;
     }
 
     Program(nint h)
