@@ -116,6 +116,10 @@ static public class Core
         queue = new CommandQueue(context, device, properties);
         Trace.WriteLine($"Create queue: {sw.ElapsedMilliseconds}ms");
         
+        Trace.WriteLine($"Platform: {platform.GetName()}");
+        Trace.WriteLine($"Version: {platform.GetVersion()}");
+        Trace.WriteLine($"Device: {device.GetName()}");
+
         Trace.Unindent();
     }
 

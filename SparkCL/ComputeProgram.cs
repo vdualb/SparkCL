@@ -13,6 +13,44 @@ public class ComputeProgram : IDisposable
         program = Program.FromFilename(Core.context!, Core.device!, fileName);
     }
 
+    ComputeProgram(Program _program)
+    {
+        program = _program;
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="fileName"></param>
+    /// <param name="prependSource">Prepend given string to program source. Might be useful for adding '#define's. Additional newline is inserted after <paramref name="prependSource"/>. </param>
+    /// <returns></returns>
+    public static ComputeProgram FromFilename(string fileName, string prependSource = "")
+    {
+        using var sr = new StreamReader(fileName);
+        string clStr = prependSource + "\n" + sr.ReadToEnd();
+
+        var program = Program.CreateWithSource(Core.context!, [clStr]);
+
+        var options = "-cl-kernel-arg-info"u8;
+
+        try
+        {
+            program.Build(options);
+        } catch (Exception)
+        {
+            string? build_log = program.GetBuildLog(Core.device!);
+
+            //Console.WriteLine("Error in kernel: ");
+            Console.WriteLine("=============== OpenCL Program Build Info ================");
+            Console.WriteLine(build_log);
+            Console.WriteLine("==========================================================");
+
+            throw;
+        }
+
+        return new ComputeProgram(program);
+    }
+
     public SparkCL.Kernel GetKernel(string kernelName, NDRange globalWork, NDRange localWork)
     {
         var oclKernel = new OCLHelper.Kernel(program, kernelName);
