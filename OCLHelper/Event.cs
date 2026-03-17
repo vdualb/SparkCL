@@ -10,6 +10,7 @@ public class Event: IDisposable
 
     public nint Handle { get; }
 
+    // return timestamp in nanoseconds
     unsafe public ulong GetProfilingInfo(
         ProfilingInfo info
     )

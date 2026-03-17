@@ -115,7 +115,7 @@ where T: unmanaged, INumber<T>
     {
         Core.queue!.EnqueueUnmapMemObject(_hostBuffer!, accessor._ptr, out var ev);
 #if COLLECT_TIME
-        Core.IOEvents.Add(ev);
+        Core.IOEvents.Add(new Event(ev));
 #endif
     }
 
@@ -143,7 +143,7 @@ where T: unmanaged, INumber<T>
     ) {
         var res = (T*)Core.queue!.EnqueueMapBuffer(_hostBuffer!, blocking, flags, 0, (nuint)Length, out var ev);
 #if COLLECT_TIME
-        Core.IOEvents.Add(ev);
+        Core.IOEvents.Add(new Event(ev));
 #endif
         if (blocking)
         {
@@ -187,20 +187,22 @@ where T: unmanaged, INumber<T>
         Span<T> destination
     ) {
         Core.queue!.EnqueueReadBuffer(_hostBuffer!, true, 0, destination, out var ev, null);
+        var evcl = new Event(ev);
 #if COLLECT_TIME
-        Core.IOEvents.Add(ev);
+        Core.IOEvents.Add(evcl);
 #endif
-        return ev;
+        return evcl;
     }
     
     public Event DeviceReadTo(
         Span<T> destination
     ) {
         Core.queue!.EnqueueReadBuffer(_deviceBuffer!, true, 0, destination, out var ev, null);
+        var evcl = new Event(ev);
 #if COLLECT_TIME
-        Core.IOEvents.Add(ev);
+        Core.IOEvents.Add(evcl);
 #endif
-        return ev;
+        return evcl;
     }
 
     public Event? ToDevice(
@@ -214,17 +216,19 @@ where T: unmanaged, INumber<T>
         
         if (_hostBuffer != _deviceBuffer)
         {
-            Core.queue!.EnqueueCopyBuffer(_hostBuffer!, _deviceBuffer!, 0, 0, (nuint) Length, out var ev, waitList);
-            
+            var waitList_ = waitList?.Select(val => val.inner).ToArray();
+            Core.queue!.EnqueueCopyBuffer(_hostBuffer!, _deviceBuffer!, 0, 0, (nuint) Length, out var ev, waitList_);
+            var evcl = new Event(ev);
+
 #if COLLECT_TIME
-            Core.IOEvents.Add(ev);
+            Core.IOEvents.Add(evcl);
 #endif
             if (blocking)
             {
-                ev.Wait();
+                evcl.Wait();
             }
             
-            return ev;
+            return evcl;
         }
         else
         {
@@ -245,17 +249,19 @@ where T: unmanaged, INumber<T>
         if (_hostBuffer != _deviceBuffer)
         {
 
-            Core.queue!.EnqueueCopyBuffer(_deviceBuffer!, _hostBuffer!, 0, 0, (nuint)Length, out var ev, waitList);
+            var waitList_ = waitList?.Select(val => val.inner).ToArray();
+            Core.queue!.EnqueueCopyBuffer(_deviceBuffer!, _hostBuffer!, 0, 0, (nuint)Length, out var ev, waitList_);
+            var evcl = new Event(ev);
 
 #if COLLECT_TIME
-            Core.IOEvents.Add(ev);
+            Core.IOEvents.Add(evcl);
 #endif
             if (blocking)
             {
-                ev.Wait();
+                evcl.Wait();
             }
 
-            return ev;
+            return evcl;
         }
         else
         {
@@ -277,15 +283,18 @@ where T: unmanaged, INumber<T>
             throw new Exception("Source and destination sizes doesn't match");
         }
         
-        Core.queue!.EnqueueCopyBuffer(_hostBuffer!, destination._hostBuffer!, 0, 0, (nuint) Length, out var ev, waitList);
+        var waitList_ = waitList?.Select(val => val.inner).ToArray();
+        Core.queue!.EnqueueCopyBuffer(_hostBuffer!, destination._hostBuffer!, 0, 0, (nuint) Length, out var ev, waitList_);
+        var evcl = new Event(ev);
+
 #if COLLECT_TIME
-        Core.KernEvents.Add(ev);
+        Core.KernEvents.Add(evcl);
 #endif
         if (blocking)
         {
-            ev.Wait();
+            evcl.Wait();
         }
-        return ev;
+        return evcl;
     }
     
     public Event CopyDeviceTo(
@@ -301,16 +310,19 @@ where T: unmanaged, INumber<T>
         {
             throw new Exception("Source and destination sizes doesn't match");
         }
-        
-        Core.queue!.EnqueueCopyBuffer(_deviceBuffer!, destination._deviceBuffer!, 0, 0, (nuint) Length, out var ev, waitList);
+
+        var waitList_ = waitList?.Select(val => val.inner).ToArray();
+        Core.queue!.EnqueueCopyBuffer(_deviceBuffer!, destination._deviceBuffer!, 0, 0, (nuint) Length, out var ev, waitList_);
+        var evcl = new Event(ev);
+
 #if COLLECT_TIME
-        Core.KernEvents.Add(ev);
+        Core.KernEvents.Add(evcl);
 #endif
         if (blocking)
         {
-            ev.Wait();
+            evcl.Wait();
         }
-        return ev;
+        return evcl;
     }
     
     protected virtual void Dispose(bool disposing)

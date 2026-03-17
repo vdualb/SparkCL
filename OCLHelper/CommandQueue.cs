@@ -48,25 +48,25 @@ public class CommandQueue : IDisposable
 
     public unsafe void EnqueueNDRangeKernel(
         Kernel kernel,
-        NDRange offset,
-        NDRange global,
-        NDRange local,
+        nuint[] offset,
+        nuint[] global,
+        nuint[] local,
         out Event @event,
         Event[]? wait_list = null)
     {
 
         ErrorCodes err;
         nint event_h;
-        fixed (nuint *g = global.Sizes)
-        fixed (nuint *o = offset.Sizes)
-        fixed (nuint *l = local.Sizes)
+        fixed (nuint *g = global)
+        fixed (nuint *o = offset)
+        fixed (nuint *l = local)
         fixed (nint *wait_list_p = Nintize(wait_list))
         {
             err = (ErrorCodes)OCL.EnqueueNdrangeKernel(
                 Handle,
                 kernel.Handle,
-                global.Dimensions,
-                offset.Dimensions != 0 ? o : null,
+                (uint)global.Length,
+                offset.Length != 0 ? o : null,
                 g,
                 l,
                 wait_list == null ? 0 : (uint) wait_list.Length,

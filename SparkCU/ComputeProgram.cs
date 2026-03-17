@@ -1,20 +1,23 @@
-using OCLHelper;
+using ManagedCuda.BasicTypes;
+using System.Reflection;
+using static ManagedCuda.DriverAPINativeMethods.ModuleManagement;
 
 using SparkCompute;
 
-namespace SparkCL;
+namespace SparkCU;
+
 public class ComputeProgram : IDisposable
 {
     private bool disposedValue;
     
-    Program program;
+    CUmodule program;
 
-    public ComputeProgram(string fileName)
-    {
-        program = Program.FromFilename(Core.context!, Core.device!, fileName);
-    }
+    //public ComputeProgram(string fileName)
+    //{
+    //    program = Program.FromFilename(Core.context!, Core.clDevice!, fileName);
+    //}
 
-    ComputeProgram(Program _program)
+    ComputeProgram(CUmodule _program)
     {
         program = _program;
     }
@@ -30,7 +33,7 @@ public class ComputeProgram : IDisposable
         using var sr = new StreamReader(fileName);
         string clStr = prependSource + "\n" + sr.ReadToEnd();
 
-        var program = Program.CreateWithSource(Core.context!, [clStr]);
+        var program = OCLHelper.Program.CreateWithSource(Core.clContext!, [clStr]);
 
         var options = "-cl-kernel-arg-info"u8;
 
@@ -39,7 +42,7 @@ public class ComputeProgram : IDisposable
             program.Build(options);
         } catch (Exception)
         {
-            string? build_log = program.GetBuildLog(Core.device!);
+            string? build_log = program.GetBuildLog(Core.clDevice!);
 
             //Console.WriteLine("Error in kernel: ");
             Console.WriteLine("=============== OpenCL Program Build Info ================");
@@ -49,25 +52,41 @@ public class ComputeProgram : IDisposable
             throw;
         }
 
-        return new ComputeProgram(program);
+        var bins = program.GetBinaries();
+        CUmodule hcuModule = new();
+        var res = cuModuleLoadDataEx(ref hcuModule, bins[0], 0, null, null);
+
+        if (res != CUResult.Success)
+        {
+            throw new Exception($"Couldn't create CUModule: {res}");
+        }
+
+        return new ComputeProgram(hcuModule);
     }
 
-    public SparkCL.Kernel GetKernel(string kernelName, NDRange globalWork, NDRange localWork)
+    public SparkCU.Kernel GetKernel(string kernelName, NDRange globalWork, NDRange localWork)
     {
-        var oclKernel = new OCLHelper.Kernel(program, kernelName);
-        return new Kernel(oclKernel, globalWork, localWork);
+        CUfunction func = new();
+        var res = cuModuleGetFunction(ref func, program, kernelName);
+
+        if (res != CUResult.Success)
+        {
+            throw new Exception($"Couldn't get kernel '{kernelName}' from cuda program: {res}");
+        }
+
+        return new Kernel(func, globalWork, localWork);
     }
     
-    public byte[][] GetBinaries()
-    {
-        return program.GetBinaries();
-    }
+    //public byte[][] GetBinaries()
+    //{
+    //    return program.GetBinaries();
+    //}
     
     protected virtual void Dispose(bool disposing)
     {
         if (!disposedValue)
         {
-            program.Dispose();
+            //program.Dispose();
             disposedValue = true;
         }
     }

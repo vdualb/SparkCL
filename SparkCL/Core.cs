@@ -8,17 +8,6 @@ using Silk.NET.OpenCL;
 // очереди команд и устройства.
 namespace SparkCL;
 
-public static class EventExt
-{
-    public static ulong GetElapsed(this OCLHelper.Event @event)
-    {
-        var s = @event.GetProfilingInfo(ProfilingInfo.Start);
-        var c = @event.GetProfilingInfo(ProfilingInfo.End);
-
-        return c - s;
-    }
-}
-
 static public class StarterKit
 {
     // создать объекты на первом попавшемся GPU
@@ -66,13 +55,13 @@ static public class Core
     // mentioned objects.
     public delegate void DeinitHandler();
     static public event DeinitHandler? OnDeinit;
-    
+     
     static public Context? context;
     static public CommandQueue? queue;
     static public OCLHelper.Device? device;
 #if COLLECT_TIME
-    static public List<Event> IOEvents { get; private set; } = new(32);
-    static public List<Event> KernEvents { get; private set; } = new(32);
+    static public List<SparkCL.Event> IOEvents { get; private set; } = new(32);
+    static public List<SparkCL.Event> KernEvents { get; private set; } = new(32);
 #endif
     static public void Init()
     {
@@ -145,11 +134,11 @@ static public class Core
 
         foreach (var ev in IOEvents)
         {
-            IO += ev.GetElapsed();
+            IO += ev.ElapsedMilliseconds;
         }
         foreach (var ev in KernEvents)
         {
-            Kern += ev.GetElapsed();
+            Kern += ev.ElapsedMilliseconds;
         }
         KernEvents.Clear();
         IOEvents.Clear();
