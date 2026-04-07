@@ -38,23 +38,17 @@ public class Event : IDisposable
     internal Event()
     {
         _event0 = new();
-        var res = DriverAPINativeMethods.Events.cuEventCreate(ref _event0, CUEventFlags.Default);
+        var res = DriverAPINativeMethods.Events.cuEventCreate(ref _event0, CUEventFlags.BlockingSync);
         if (res != CUResult.Success)
         {
             throw new Exception($"Couldn't create an event, code: {res}");
         }
         _event1 = new();
-        res = DriverAPINativeMethods.Events.cuEventCreate(ref _event1, CUEventFlags.Default);
+        res = DriverAPINativeMethods.Events.cuEventCreate(ref _event1, CUEventFlags.BlockingSync);
         if (res != CUResult.Success)
         {
             throw new Exception($"Couldn't create an event, code: {res}");
         }
-    }
-
-    internal Event(CUevent event0, CUevent event1)
-    {
-        _event0 = event0;
-        _event1 = event1;
     }
 
     public ulong ElapsedMilliseconds
@@ -90,12 +84,14 @@ public class Event : IDisposable
     {
         if (!disposedValue)
         {
-            var res = DriverAPINativeMethods.Events.cuEventDestroy_v2(_event0);
+            var res = CUResult.Success;
+            // FIXME: crashes
+            // res = DriverAPINativeMethods.Events.cuEventDestroy_v2(_event0);
             if (res != CUResult.Success)
             {
                 Debug.WriteLine($"Couldn't destroy an event, code: {res}");
             }
-            res = DriverAPINativeMethods.Events.cuEventDestroy_v2(_event1);
+            //res = DriverAPINativeMethods.Events.cuEventDestroy_v2(_event1);
             if (res != CUResult.Success)
             {
                 Debug.WriteLine($"Couldn't destroy an event, code: {res}");

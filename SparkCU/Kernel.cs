@@ -67,13 +67,13 @@ public class Kernel : IDisposable
     public NDRange LocalWork { get; set; }
     uint sharedMemSize;
 
+    // TODO: вернуть waitList
+    // TODO: в CUDA по-умному указывается размер работы с помощью размера сетки и 
+    // размера блока, что избегает проблем с возможным заданием работы, которую 
+    // нельзя поровну поделить между блоками (группами, в терминах OpenCL). Может
+    // использовать такой же способ и для OpenCL?
     /// Blocking - Поставить ядро в очередь на выполнение и подождать его
     /// waitList - Список событий, которые должны быть выполнены перед выполнением ядра.
-    /// TODO: вернуть waitList
-    /// TODO: в CUDA по-умному указывается размер работы с помощью размера сетки и 
-    /// размера блока, что избегает проблем с возможным заданием работы, которую 
-    /// нельзя поровну поделить между блоками (группами в терминах OpenCL). Может
-    /// использовать такой же способ и для OpenCL?
     public Event Execute(
         bool blocking = true
     )
@@ -98,13 +98,17 @@ public class Kernel : IDisposable
 
         var ev = new Event();
         ev.Record0();
-        var err = DriverAPINativeMethods.Launch.cuLaunchKernel(
+        var res = DriverAPINativeMethods.Launch.cuLaunchKernel(
             Inner,
             (uint)gridDim[0], (uint)gridDim[1], (uint)gridDim[2],
             (uint)LocalWork[0], (uint)LocalWork[1], (uint)LocalWork[2],
             sharedMemSize, CUstream.NullStream,
             array, null
         );
+        if (res != CUResult.Success)
+        {
+            throw new Exception($"Couldn't launch a kernel, code: {res}");
+        }
         ev.Record1();
 
         for (int j = 0; j < num; j++)

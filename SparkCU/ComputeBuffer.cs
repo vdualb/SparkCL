@@ -24,6 +24,10 @@ public enum MemFlags : ulong
     HostNoAccess    = 1<<1,
 }
 
+public enum MapFlags
+{
+    Read
+}
 
 public unsafe class ComputeBuffer<T> : IDisposable
 where T: unmanaged, INumber<T>
@@ -147,6 +151,14 @@ where T: unmanaged, INumber<T>
             {
                 throw new Exception($"Couldn't create a buffer, code: {res}");
             }
+            fixed (T* ptr = _hostBuffer)
+            {
+                res = DriverAPINativeMethods.AsynchronousMemcpy_v2.cuMemcpyHtoDAsync_v2(_deviceBuffer, (IntPtr)ptr, Length * sizeof(T), CUstream.NullStream);
+            }
+            if (res != CUResult.Success)
+            {
+                throw new Exception($"Couldn't copy initial values, code: {res}");
+            }
         }
     }
     
@@ -160,18 +172,18 @@ where T: unmanaged, INumber<T>
         Core.IOEvents.Add(ev);
 #endif
     }
-
+    */
     public Accessor<T> MapHost(MapFlags flags)
     {
         if (!_bufferFlags.HasFlag(BufferFlags.OnHost))
         {
             throw new Exception($"No host copy to map into. Buffer must be created with {BufferFlags.OnHost}");
         }
-        
-        var ptr = MapHostPointer(flags);
-        return new Accessor<T>(this, ptr, Length);
+
+        return new Accessor<T>(this, _hostBuffer.AsSpan());
     }
 
+    /*
     T* MapHostPointer(
         MapFlags flags,
         bool blocking = true
@@ -222,17 +234,16 @@ where T: unmanaged, INumber<T>
     public Event HostReadTo(
         Span<T> destination
     ) {
-        var ev0 = new CudaEvent();
-        var ev1 = new CudaEvent();
+        var ev = new Event();
         // TODO: idk how events work in such situations to measure host time
-        ev0.Record();
+        ev.Record0();
         _hostBuffer.CopyTo(destination);
-        ev1.Record();
+        ev.Record1();
 
 #if CU_COLLECT_TIME
         Core.IOEvents.Add(ev);
 #endif
-        return new Event(ev0.Event, ev1.Event);
+        return ev;
     }
     
     public Event DeviceReadTo(
@@ -395,7 +406,9 @@ where T: unmanaged, INumber<T>
     {
         if (!disposedValue)
         {
-            var err = DriverAPINativeMethods.MemoryManagement.cuMemFree_v2(_deviceBuffer);
+            var err = CUResult.Success;
+            // FIXME: errors
+            // err = DriverAPINativeMethods.MemoryManagement.cuMemFree_v2(_deviceBuffer);
             if (err != CUResult.Success)
             {
                 throw new Exception($"Couldn't free a buffer, code: {err}");
@@ -419,7 +432,6 @@ where T: unmanaged, INumber<T>
 unsafe interface IReadOnlyMemAccessor<T>
 where T: unmanaged, INumber<T>
 {
-    internal T* _ptr { get; }
     int Length{ get; }
     T this[int i] { get; }
 }
@@ -430,15 +442,13 @@ where T: unmanaged, INumber<T>
     new T this[int i] { get; set; }
 }
 
-/*
-public unsafe class Accessor<T> : IMemAccessor<T>, IDisposable
-where T: unmanaged, INumber<T>
+// TODO: this needs to implement some replacement for IDisposable
+public unsafe ref struct Accessor<T> : IMemAccessor<T>
+where T : unmanaged, INumber<T>
 {
-    private bool disposedValue;
-    
-    internal T* ptr { get; }
-    T* IReadOnlyMemAccessor<T>._ptr => ptr;
-    ComputeBuffer<T> _master;
+    Span<T> inner_;
+
+    ComputeBuffer<T> master_;
 
     public int Length { get; private set; }
 
@@ -446,41 +456,19 @@ where T: unmanaged, INumber<T>
     {
         // TODO: measure performace
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => ptr[i];
+        get => inner_[i];
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => ptr[i] = value;
+        set => inner_[i] = value;
     }
 
-    internal Accessor(ComputeBuffer<T> buffer, T* ptr, int length)
+    internal Accessor(ComputeBuffer<T> buffer, Span<T> inner)
     {
-        _master = buffer;
-        this.ptr = ptr;
-        Length = length;
+        master_ = buffer;
+        inner_ = inner;
     }
 
     public Span<T> AsSpan()
     {
-        return new Span<T>(ptr, Length);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (!disposedValue)
-        {
-            _master.UnmapAccessor(this);
-            disposedValue = true;
-        }
-    }
-
-    ~Accessor()
-    {
-        Dispose(disposing: false);
-    }
-
-    public void Dispose()
-    {
-        Dispose(disposing: true);
-        GC.SuppressFinalize(this);
+        return inner_;
     }
 }
-*/

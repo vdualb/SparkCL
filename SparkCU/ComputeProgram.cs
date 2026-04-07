@@ -1,4 +1,5 @@
 using ManagedCuda.BasicTypes;
+using ManagedCuda.NVRTC;
 using System.Reflection;
 using static ManagedCuda.DriverAPINativeMethods.ModuleManagement;
 
@@ -22,6 +23,48 @@ public class ComputeProgram : IDisposable
         program = _program;
     }
 
+    public static ComputeProgram FromChoice(ProgramSource src)
+    {
+        if (src.SourceCuda != null)
+        {
+
+        }
+        throw new NotImplementedException();
+    }
+
+    public static ComputeProgram FromString(string source)
+    {
+        var rtc = new CudaRuntimeCompiler(source, null);
+        try
+        {
+            rtc.Compile([]);
+        }
+        catch (NVRTCException)
+        {
+            var log = rtc.GetLogAsString();
+            Console.WriteLine($"Compile error: " + log);
+            throw;
+        }
+
+        byte[] bin = rtc.GetPTX();
+
+        CUmodule hcuModule = new();
+        var res = cuModuleLoadData(ref hcuModule, bin);
+
+        if (res != CUResult.Success)
+        {
+            throw new Exception($"Couldn't create CUModule from .cu source, code: {res}");
+        }
+
+        return new ComputeProgram(hcuModule);
+    }
+
+    static ComputeProgram FromCudaSource(string fileName, string prependSource = "")
+    {
+        string cuStr = prependSource + "\n" + File.ReadAllText(fileName);
+
+        throw new NotImplementedException();
+    }
     /// <summary>
     /// 
     /// </summary>
@@ -30,39 +73,59 @@ public class ComputeProgram : IDisposable
     /// <returns></returns>
     public static ComputeProgram FromFilename(string fileName, string prependSource = "")
     {
-        using var sr = new StreamReader(fileName);
-        string clStr = prependSource + "\n" + sr.ReadToEnd();
-
-        var program = OCLHelper.Program.CreateWithSource(Core.clContext!, [clStr]);
-
-        var options = "-cl-kernel-arg-info"u8;
-
+        var contents = prependSource + File.ReadAllText("opencl_to_cuda.h") + File.ReadAllText(fileName + ".cl");
+        var rtc = new CudaRuntimeCompiler(contents, null);
         try
         {
-            program.Build(options);
-        } catch (Exception)
+            rtc.Compile([]);
+        }
+        catch (NVRTCException)
         {
-            string? build_log = program.GetBuildLog(Core.clDevice!);
-
-            //Console.WriteLine("Error in kernel: ");
-            Console.WriteLine("=============== OpenCL Program Build Info ================");
-            Console.WriteLine(build_log);
-            Console.WriteLine("==========================================================");
-
+            var log = rtc.GetLogAsString();
+            Console.WriteLine($"Compile error: " + log);
             throw;
         }
 
-        var bins = program.GetBinaries();
+        byte[] bin = rtc.GetPTX();
+
+        var file_ptx = $"{fileName}.ptx";
+        var file_cubin = $"{fileName}.cubin";
+
+        /*
+        if (File.Exists(file_cubin))
+        {
+            Console.WriteLine($"Using local cubin");
+            bin = File.ReadAllBytes(file_cubin);
+        }
+        else if (File.Exists(file_ptx))
+        {
+            Console.WriteLine($"Using local ptx");
+            bin = File.ReadAllBytes(file_ptx);
+        }
+        else
+        {
+            throw new Exception($"Couldn't find `{fileName}`");
+        }
+        */
+
         CUmodule hcuModule = new();
-        var res = cuModuleLoadDataEx(ref hcuModule, bins[0], 0, null, null);
+        var res = cuModuleLoadData(ref hcuModule, bin);
 
         if (res != CUResult.Success)
         {
-            throw new Exception($"Couldn't create CUModule: {res}");
+            throw new Exception($"Couldn't create CUModule from filename `{fileName}`, code: {res}");
         }
 
         return new ComputeProgram(hcuModule);
     }
+
+    // TODO: cuda doesn't seem to provide API to dump ptx code.
+    // but future unified compute interface probably doesn't require it anyway
+    //public byte[][] GetBinaries()
+    //{
+    //    cumodule
+    //    return program.GetBinaries();
+    //}
 
     public SparkCU.Kernel GetKernel(string kernelName, NDRange globalWork, NDRange localWork)
     {
