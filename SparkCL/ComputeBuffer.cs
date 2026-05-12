@@ -2,6 +2,7 @@ using Silk.NET.OpenCL;
 using OCLHelper;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Diagnostics.Contracts;
 
 namespace SparkCL;
 
@@ -12,6 +13,24 @@ public enum BufferFlags
     OnDevice        = 1<<1,
     OnHostAndDevice = OnHost | OnDevice,
     // DeviceInternal = 1<<2,
+}
+
+public enum MapFlags
+{
+    Read
+}
+
+static class MapFlagsImpl
+{
+    public static Silk.NET.OpenCL.MapFlags ToNative(this MapFlags flags)
+    {
+        return flags switch
+        {
+            MapFlags.Read => Silk.NET.OpenCL.MapFlags.Read,
+
+            _ => throw new Exception("Invalid flag to convert")
+        };
+    }
 }
 
 public unsafe class ComputeBuffer<T> : IDisposable
@@ -129,19 +148,12 @@ where T: unmanaged, INumber<T>
         var ptr = MapHostPointer(flags);
         return new Accessor<T>(this, ptr, Length);
     }
-    
-    /*
-    public Span<T> AsSpan()
-    {
-        return new Span<T>(_storage, Length);
-    }
-    */
 
     T* MapHostPointer(
         MapFlags flags,
         bool blocking = true
     ) {
-        var res = (T*)Core.queue!.EnqueueMapBuffer(_hostBuffer!, blocking, flags, 0, (nuint)Length, out var ev);
+        var res = Core.queue!.EnqueueMapBuffer(_hostBuffer!, blocking, flags.ToNative(), 0, (nuint)Length, out var ev);
 #if COLLECT_TIME
         Core.IOEvents.Add(new Event(ev));
 #endif
@@ -151,37 +163,6 @@ where T: unmanaged, INumber<T>
         }
         return res;
     }
-    
-    //unsafe public Event Unmap()
-    //{
-    //    Core.queue!.EnqueueUnmapMemObject(buffer, mappedPtr, out var ev);
-    //    return ev;
-    //}
-
-    /*
-    public Event Read(
-        bool blocking = true,
-        Event[]? wait_list = null
-    )
-    {
-        Core.queue!.EnqueueReadBuffer(_buffer, blocking, 0, AsSpan(), out var ev);
-        #if COLLECT_TIME
-            Core.IOEvents.Add(ev);
-        #endif
-        return ev;
-    }
-
-    public Event Write(
-        bool blocking = true
-    )
-    {
-        Core.queue!.EnqueueWriteBuffer(_buffer, blocking, 0, AsSpan(), out var ev);
-        #if COLLECT_TIME
-            Core.IOEvents.Add(ev);
-        #endif
-        return ev;
-    }
-    */
 
     public Event HostReadTo(
         Span<T> destination
@@ -297,6 +278,7 @@ where T: unmanaged, INumber<T>
         return evcl;
     }
     
+    // [Pure]
     public Event CopyDeviceTo(
         ComputeBuffer<T> destination,
         bool blocking = true,

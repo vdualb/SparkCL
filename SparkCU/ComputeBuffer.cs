@@ -95,18 +95,6 @@ where T: unmanaged, INumber<T>
         return red;
     }}
 
-    static Silk.NET.OpenCL.MemFlags MemFlagsToNative(MemFlags flags)
-    {
-        return flags switch
-        {
-            MemFlags.None           => Silk.NET.OpenCL.MemFlags.None,
-            MemFlags.ReadWrite      => Silk.NET.OpenCL.MemFlags.ReadWrite,
-            MemFlags.HostNoAccess   => Silk.NET.OpenCL.MemFlags.HostNoAccess,
-
-            _ => throw new Exception("Invalid flag to convert")
-        };
-    }
-
     public ComputeBuffer(ReadOnlySpan<T> in_array, BufferFlags bufferFlags, MemFlags flags = MemFlags.ReadWrite)
     {
         _deviceBuffer = new CUdeviceptr();
@@ -114,8 +102,6 @@ where T: unmanaged, INumber<T>
         Length = in_array.Length;
         var _typeSize = (uint)Marshal.SizeOf<T>();
 
-        
-        var flags_ = MemFlagsToNative(flags);
         if (bufferFlags.HasFlag(BufferFlags.OnHost))
         {
             _hostBuffer = in_array.ToArray();
@@ -128,6 +114,14 @@ where T: unmanaged, INumber<T>
             {
                 throw new Exception($"Couldn't create a buffer, code: {res}");
             }
+            fixed (T* ptr = in_array)
+            {
+                res = DriverAPINativeMethods.AsynchronousMemcpy_v2.cuMemcpyHtoDAsync_v2(_deviceBuffer, (IntPtr)ptr, Length * sizeof(T), CUstream.NullStream);
+            }
+            if (res != CUResult.Success)
+            {
+                throw new Exception($"Couldn't copy initial values, code: {res}");
+            }
         }
     }
     
@@ -138,7 +132,6 @@ where T: unmanaged, INumber<T>
         Length = length;
         var _typeSize = (uint)Marshal.SizeOf<T>();
 
-        var flags_ = MemFlagsToNative(flags);
         if (bufferFlags.HasFlag(BufferFlags.OnHost))
         {
             _hostBuffer = new T[Length];
@@ -150,14 +143,6 @@ where T: unmanaged, INumber<T>
             if (res != CUResult.Success)
             {
                 throw new Exception($"Couldn't create a buffer, code: {res}");
-            }
-            fixed (T* ptr = _hostBuffer)
-            {
-                res = DriverAPINativeMethods.AsynchronousMemcpy_v2.cuMemcpyHtoDAsync_v2(_deviceBuffer, (IntPtr)ptr, Length * sizeof(T), CUstream.NullStream);
-            }
-            if (res != CUResult.Success)
-            {
-                throw new Exception($"Couldn't copy initial values, code: {res}");
             }
         }
     }
@@ -381,10 +366,11 @@ where T: unmanaged, INumber<T>
 
         var ev = new Event();
         ev.Record0();
-        var err = DriverAPINativeMethods.SynchronousMemcpy_v2.cuMemcpyDtoD_v2(
+        var err = DriverAPINativeMethods.AsynchronousMemcpy_v2.cuMemcpyDtoDAsync_v2(
             destination._deviceBuffer,
             _deviceBuffer,
-            Length*sizeof(T)
+            Length * sizeof(T),
+            CUstream.NullStream
         );
         if (err != CUResult.Success)
         {
@@ -407,8 +393,7 @@ where T: unmanaged, INumber<T>
         if (!disposedValue)
         {
             var err = CUResult.Success;
-            // FIXME: errors
-            // err = DriverAPINativeMethods.MemoryManagement.cuMemFree_v2(_deviceBuffer);
+             err = DriverAPINativeMethods.MemoryManagement.cuMemFree_v2(_deviceBuffer);
             if (err != CUResult.Success)
             {
                 throw new Exception($"Couldn't free a buffer, code: {err}");
@@ -442,8 +427,7 @@ where T: unmanaged, INumber<T>
     new T this[int i] { get; set; }
 }
 
-// TODO: this needs to implement some replacement for IDisposable
-public unsafe ref struct Accessor<T> : IMemAccessor<T>
+public unsafe ref struct Accessor<T> : IMemAccessor<T>, IDisposable
 where T : unmanaged, INumber<T>
 {
     Span<T> inner_;
@@ -470,5 +454,10 @@ where T : unmanaged, INumber<T>
     public Span<T> AsSpan()
     {
         return inner_;
+    }
+
+    public void Dispose()
+    {
+        // nothing to do
     }
 }

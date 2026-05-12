@@ -1,6 +1,5 @@
 using ManagedCuda.BasicTypes;
 using ManagedCuda.NVRTC;
-using System.Reflection;
 using static ManagedCuda.DriverAPINativeMethods.ModuleManagement;
 
 using SparkCompute;
@@ -34,17 +33,22 @@ public class ComputeProgram : IDisposable
 
     public static ComputeProgram FromString(string source)
     {
-        var rtc = new CudaRuntimeCompiler(source, null);
+        using var rtc = new CudaRuntimeCompiler(source, null);
+        string log;
         try
         {
-            rtc.Compile([]);
+            rtc.Compile([
+                "--gpu-architecture=compute_20",
+            ]);
         }
         catch (NVRTCException)
         {
-            var log = rtc.GetLogAsString();
+            log = rtc.GetLogAsString();
             Console.WriteLine($"Compile error: " + log);
             throw;
         }
+        log = rtc.GetLogAsString();
+        Console.WriteLine($"Compile log: " + (log.Length > 0 ? log : "<empty>"));
 
         byte[] bin = rtc.GetPTX();
 
@@ -73,8 +77,8 @@ public class ComputeProgram : IDisposable
     /// <returns></returns>
     public static ComputeProgram FromFilename(string fileName, string prependSource = "")
     {
-        var contents = prependSource + File.ReadAllText("opencl_to_cuda.h") + File.ReadAllText(fileName + ".cl");
-        var rtc = new CudaRuntimeCompiler(contents, null);
+        var contents = prependSource + File.ReadAllText("opencl_to_cuda.h") + File.ReadAllText(fileName);
+        var rtc = new CudaRuntimeCompiler(contents, fileName);
         try
         {
             rtc.Compile([]);
@@ -83,6 +87,7 @@ public class ComputeProgram : IDisposable
         {
             var log = rtc.GetLogAsString();
             Console.WriteLine($"Compile error: " + log);
+            Console.WriteLine($"Program source: ```\n{contents}\n```");
             throw;
         }
 

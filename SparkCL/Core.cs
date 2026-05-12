@@ -36,10 +36,10 @@ static public class StarterKit
 
         context = Context.ForDevices([device]);
 
-        QueueProperties[] properties = [
-            (QueueProperties)CommandQueueInfo.Properties, (QueueProperties) CommandQueueProperties.ProfilingEnable,
-            0
-        ];
+        CommandQueueProperties properties = CommandQueueProperties.None;
+#if COLLECT_TIME
+        properties |= CommandQueueProperties.ProfilingEnable;
+#endif
         commandQueue = new CommandQueue(context, device, properties);
     }
 }
@@ -84,30 +84,36 @@ static public class Core
         }
 
         Console.WriteLine($"Platform: {platform.GetName()}");
+        Trace.WriteLine($"Platform: {platform.GetName()}");
         Console.WriteLine($"Version: {platform.GetVersion()}");
+        Trace.WriteLine($"Version: {platform.GetVersion()}");
 
         sw.Restart();
         device = platform.GetDevicesOfType(DeviceType.Gpu).First();
         Trace.WriteLine($"List devices: {sw.ElapsedMilliseconds}ms");
         Console.WriteLine($"Device: {device.GetName()}");
+        Trace.WriteLine($"Device: {device.GetName()}");
 
         sw.Restart();
         context = Context.ForDevices([device]);
         Trace.WriteLine($"Create context: {sw.ElapsedMilliseconds}ms");
-        
-        QueueProperties[] properties = [
+
+        // requires opencl 2.0
+        // QueueProperties[] properties = [
 #if COLLECT_TIME
-            (QueueProperties)CommandQueueInfo.Properties, (QueueProperties) CommandQueueProperties.ProfilingEnable,
+        //     (QueueProperties)CommandQueueInfo.Properties, (QueueProperties) CommandQueueProperties.ProfilingEnable,
 #endif
-            0
-        ];
+        //     0
+        // ];
+        CommandQueueProperties properties = CommandQueueProperties.None;
+#if COLLECT_TIME
+        properties |= CommandQueueProperties.ProfilingEnable;
+#endif
         sw.Restart();
         queue = new CommandQueue(context, device, properties);
         Trace.WriteLine($"Create queue: {sw.ElapsedMilliseconds}ms");
-        
-        Trace.WriteLine($"Platform: {platform.GetName()}");
-        Trace.WriteLine($"Version: {platform.GetVersion()}");
-        Trace.WriteLine($"Device: {device.GetName()}");
+
+        Console.WriteLine("OpenCL initialized");
 
         Trace.Unindent();
     }

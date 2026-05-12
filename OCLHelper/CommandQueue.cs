@@ -11,7 +11,8 @@ public class CommandQueue : IDisposable
     
     public nint Handle { get; }
 
-    public unsafe CommandQueue(Context context, Device device, QueueProperties[] properties)
+    // requires OpenCL 2.0
+    public unsafe CommandQueue(Context context, Device device, CommandQueueProperties[] properties)
     {
         // properties example:
         // QueueProperties[] properties = [
@@ -20,10 +21,24 @@ public class CommandQueue : IDisposable
         // ];
 
         ErrorCodes err;
-        fixed (QueueProperties *p = properties)
+        Handle = OCL.CreateCommandQueue(context.Handle, device.Handle, CommandQueueProperties.ProfilingEnable, (int *)&err);
+
+        // requires opencl 2.0
+        // fixed (QueueProperties *p = properties)
+        // {
+        //     Handle = OCL.CreateCommandQueueWithProperties(context.Handle, device.Handle, p, (int *)&err);
+        // }
+
+        if (err != ErrorCodes.Success)
         {
-            Handle = OCL.CreateCommandQueueWithProperties(context.Handle, device.Handle, p, (int *)&err);
+            throw new Exception(AppendErrCode("Couldn't create command queue, code: ", err));
         }
+    }
+
+    public unsafe CommandQueue(Context context, Device device, CommandQueueProperties properties)
+    {
+        ErrorCodes err;
+        Handle = OCL.CreateCommandQueue(context.Handle, device.Handle, CommandQueueProperties.ProfilingEnable, (int *)&err);
 
         if (err != ErrorCodes.Success)
         {

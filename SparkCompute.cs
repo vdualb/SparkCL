@@ -33,7 +33,7 @@ namespace SparkCompute
 
         public NDRange PadTo(int multiplier)
         {
-            for (int i = 0; i < 3; i++)
+            for (int i = 0; i < Dimensions; i++)
             {
                 Sizes[i] = PaddedTo((int)Sizes[i], multiplier);
             }
@@ -43,7 +43,7 @@ namespace SparkCompute
 
         public NDRange PadTo(nuint multiplier)
         {
-            for (int i = 0; i < 3; i++)
+            for (int i = 0; i < Dimensions; i++)
             {
                 Sizes[i] = PaddedTo((int)Sizes[i], (int)multiplier);
             }

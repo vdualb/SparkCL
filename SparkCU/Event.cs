@@ -85,13 +85,12 @@ public class Event : IDisposable
         if (!disposedValue)
         {
             var res = CUResult.Success;
-            // FIXME: crashes
-            // res = DriverAPINativeMethods.Events.cuEventDestroy_v2(_event0);
+            res = DriverAPINativeMethods.Events.cuEventDestroy_v2(_event0);
             if (res != CUResult.Success)
             {
                 Debug.WriteLine($"Couldn't destroy an event, code: {res}");
             }
-            //res = DriverAPINativeMethods.Events.cuEventDestroy_v2(_event1);
+            res = DriverAPINativeMethods.Events.cuEventDestroy_v2(_event1);
             if (res != CUResult.Success)
             {
                 Debug.WriteLine($"Couldn't destroy an event, code: {res}");

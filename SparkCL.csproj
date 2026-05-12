@@ -13,9 +13,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-	  <ProjectReference Include="../managedCuda/ManagedCuda/ManagedCuda.netCore.csproj"/>
-	  <ProjectReference Include="../managedCuda/NVRTC/NVRTC.netCore.csproj"/>
+	  <ProjectReference Include="../managedCuda/ManagedCuda/ManagedCuda.netCore.csproj" />
+	  <ProjectReference Include="../managedCuda/NVRTC/NVRTC.netCore.csproj" />
     <PackageReference Include="Silk.NET.OpenCL" Version="2.22.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="opencl_to_cuda.h">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
