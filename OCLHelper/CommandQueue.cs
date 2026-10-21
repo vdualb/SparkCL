@@ -102,22 +102,28 @@ public class CommandQueue : IDisposable
         MapFlags flags,
         nuint offset,
         nuint count,
-        out Event @event)
+        out Event @event,
+        Event[]? wait_list = null)
     where T : unmanaged, INumber<T>
     {
-        nint event_h;
         ErrorCodes err;
-        var ptr = (T*)OCL.EnqueueMapBuffer(
-            Handle,
-            buffer.Handle,
-            blocking,
-            flags,
-            offset * (nuint) sizeof(T),
-            count * (nuint) sizeof(T),
-            0,
-            null,
-            out event_h,
-            (int *)&err);
+        T* ptr;
+        nint event_h;
+        fixed (nint *wait_list_p = Nintize(wait_list))
+        { 
+            ptr = (T*)OCL.EnqueueMapBuffer(
+                Handle,
+                buffer.Handle,
+                blocking,
+                flags,
+                offset * (nuint) sizeof(T),
+                count * (nuint) sizeof(T),
+                wait_list == null ? 0 : (uint)wait_list.Length,
+                wait_list == null ? null : wait_list_p,
+                out event_h,
+                (int *)&err
+            );
+        }
 
         if (err != ErrorCodes.Success)
         {

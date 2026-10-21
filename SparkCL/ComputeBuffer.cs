@@ -165,9 +165,11 @@ where T: unmanaged, INumber<T>
     }
 
     public Event HostReadTo(
-        Span<T> destination
+        Span<T> destination,
+        bool blocking = true
     ) {
-        Core.queue!.EnqueueReadBuffer(_hostBuffer!, true, 0, destination, out var ev, null);
+        Core.queue!.EnqueueReadBuffer(
+            _hostBuffer!, blocking, 0, destination, out var ev, null);
         var evcl = new Event(ev);
 #if COLLECT_TIME
         Core.IOEvents.Add(evcl);
